@@ -11,6 +11,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -54,14 +55,23 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func main() {
 	var (
 		insecure bool
+		data     string
 	)
 
 	flag.BoolVar(&insecure, "insecure", false, "skip TLS certificate verification (INSECURE)")
+	flag.StringVar(&data, "d", "", "data to POST (switches method to POST, content-type application/x-www-form-urlencoded)")
 	flag.Parse()
 
 	url := "https://example.com"
 	if flag.NArg() > 0 {
 		url = flag.Arg(0)
+	}
+
+	method := http.MethodGet
+	var reqBody io.Reader
+	if data != "" {
+		method = http.MethodPost
+		reqBody = strings.NewReader(data)
 	}
 
 	trace := &httptrace.ClientTrace{
@@ -94,12 +104,15 @@ func main() {
 	}
 
 	ctx := httptrace.WithClientTrace(context.Background(), trace)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to build request: %v\n", err)
 		os.Exit(1)
 	}
 	req.Header.Set("User-Agent", "go_test-debug-client/1.0")
+	if data != "" {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -131,12 +144,12 @@ func main() {
 		}
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to read body: %v\n", err)
 		os.Exit(1)
 	}
 
 	fmt.Println("----- Response Body (as text) -----")
-	fmt.Println(string(body))
+	fmt.Println(string(bodyBytes))
 }
