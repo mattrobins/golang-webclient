@@ -117,7 +117,7 @@ func main() {
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
+			//			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: insecure, // intended for debugging only
 		},
 	}
